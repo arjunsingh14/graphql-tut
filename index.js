@@ -1,4 +1,5 @@
-const { ApolloServer, gql } = require("apollo-server");
+const { v1: uuid } = require("uuid");
+const { ApolloServer, UserInputError, gql } = require("apollo-server");
 
 let persons = [
   {
@@ -24,6 +25,10 @@ let persons = [
 ];
 
 const typeDefs = gql`
+  enum yesNo {
+      YES
+      NO
+  }
   type Address {
     street: String!
     city: String!
@@ -38,17 +43,33 @@ const typeDefs = gql`
 
   type Query {
     personCount: Int!
-    allPersons: [Person!]!
+    allPersons (phone: yesNo): [Person!]!
     findPerson(name: String!): Person
   }
-`;
 
+  type Mutation {
+    addPerson(
+      name: String
+      phone: String
+      street: String!
+      city: String!
+    ): Person
+  }
+`;
+//Define our queries and how they store information
 const resolvers = {
   Query: {
     personCount: () => persons.length,
-    allPersons: () => persons,
+    allPersons: (root, args) => {
+        if (!args.phone) return persons
+        return persons.filter((person) => args.phone === 'YES' ? person.phone : !person.phone)
+    },
     findPerson: (root, args) => persons.find((p) => p.name === args.name),
   },
+  //if not put up in resolvers, Person is defined by apollo's default
+  //resolver which just take the root properties defined in typedefs and assigns them
+  //to customise define new Person property and use root to access elements
+  
   Person: {
     address: (root) => {
       return {
@@ -57,6 +78,32 @@ const resolvers = {
       };
     },
   },
+
+  /**
+   * Mutations work a like post/patch requests, use them to add/edit new
+   * person to the db
+   */
+  Mutation: {
+    addPerson: (root, args) => {
+      if (persons.find((p) => p.name === args.name)) {
+        throw new UserInputError("Name must be unique", {
+          invalidArgs: args.name,
+        });
+      }
+      const person = { ...args, id: uuid() };
+      persons = persons.concat(person);
+      return person;
+    },
+  },
+  editNumber: (root, args) => {
+      const person = persons.find((p) => args.name === p.name)
+      if (!person){
+          return null
+      }
+      const updatePerson = {...person, phone:args.phone}
+      persons.map((p) => p.name === args.name ? updatePerson : p)
+      return updatePerson
+  }
 };
 
 const server = new ApolloServer({
