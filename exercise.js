@@ -1,4 +1,4 @@
-const {ApolloServer, gql} = require("apollo-server")
+const { ApolloServer, gql } = require("apollo-server");
 
 let authors = [
   {
@@ -25,7 +25,6 @@ let authors = [
     id: "afa5b6f3-344d-11e9-a414-719c6709cf3e",
   },
 ];
-
 
 let books = [
   {
@@ -79,44 +78,82 @@ let books = [
   },
 ];
 
-
 const typeDefs = gql`
-    type Query {
-        bookCount: Int!
-        authorCount: Int!
-        allBooks(author: String): [Book!]!
-        allAuthors: [Author!]!
-    }
-    type Book {
-        title: String!
-        author: String!
-        published: String
-        genres: String
-    }
+  type Query {
+    bookCount: Int!
+    authorCount: Int!
+    allBooks(author: String, genre: String): [Book!]!
+    allAuthors: [Author!]!
+  }
+  type Book {
+    title: String!
+    author: String!
+    published: Int
+    genres: [String!]!
+  }
 
-    type Author {
-        name: String!
-        id: ID
-        born: Int!
-        bookCount: Int!
-    }
-`
-
+  type Author {
+    name: String!
+    id: ID
+    born: Int!
+    bookCount: Int!
+  }
+  type Mutation {
+      addBook(
+        title: String! 
+        author: String! 
+        published: Int! 
+        genres: [String!]!): Book
+      editAuthor(name: String! born: Int!): Author
+  }
+`;
 
 const resolvers = {
-    Query: {
-        bookCount: () => books.length,
-        authorCount: () => authors.length,
-        allBooks: (root, args) => {
-            if (!args.author) return null
-            const result = books.filter((book) => args.author === book.author)
-            return result
-        },
-        allAuthors: () => authors
-        
+  Query: {
+    bookCount: () => books.length,
+    authorCount: () => authors.length,
+    allBooks: (root, args) => {
+      if (!args.author && !args.genre) return books;
+      let result = [];
+      if (args.author && args.genre) {
+        result = books.filter(
+          (book) =>
+            args.author === book.author && book.genres.includes(args.genre)
+        );
+        return result;
+      } else if (args.genre && !args.author) {
+        result = books.filter((book) => book.genres.includes(args.genre));
+      } else if (args.author && !args.genre) {
+        result = books.filter((book) => args.author === book.author);
+      }
+      return result;
     },
+    allAuthors: (root) => {
+      const arr = authors.map((author) => {
+        return {
+          ...author,
+          bookCount: books.filter((book) => book.author === author.name).length,
+        };
+      });
+      return arr;
+    },
+  },
+  Mutation: {
+    addBook: (root, args) => {
+      const book = { ...args };
+      books = books.concat(book);
+      return book;
+    },
+    editAuthor:(root, args) => {
+        const author = authors.find((author) => author.name === args.name)
+        if (!author) return null;
 
-}
+        const updatedAuthor = {...author, born: args.born}
+       authors =  authors.map((author) => author.name === args.name ? updatedAuthor : author)
+       return updatedAuthor
+    }
+  },
+};
 
 const server = new ApolloServer({
   typeDefs,
@@ -124,5 +161,5 @@ const server = new ApolloServer({
 });
 
 server.listen().then(({ url }) => {
-  console.log(`Server ready at ${url}`)
-})
+  console.log(`Server ready at ${url}`);
+});
