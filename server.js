@@ -88,23 +88,22 @@ const typeDefs = gql`
   type Book {
     title: String!
     author: String!
-    published: Int
+    published: String!
     genres: [String!]!
   }
 
   type Author {
     name: String!
-    id: ID
-    born: Int!
+    born: Int
     bookCount: Int!
   }
   type Mutation {
       addBook(
         title: String! 
         author: String! 
-        published: Int! 
-        genres: [String!]!): Book
-      editAuthor(name: String! born: Int!): Author
+        published: String!
+        genres: [String!]!): Book!
+      editAuthor(name: String! born: String!): Author
   }
 `;
 
